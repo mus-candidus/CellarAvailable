@@ -8,17 +8,77 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Locations;
+using StardewValley.Menus;
+
+using CellarAvailable.Framework;
 
 
 namespace CellarAvailable {
     public class ModEntry : Mod {
+        private bool showCommunityUpgrade_;
+
         public override void Entry(IModHelper helper) {
             this.Helper.Events.GameLoop.DayStarted += OnDayStarted;
+            this.Helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            // Hook into MenuChanged event to intercept dialogues.
+            this.Helper.Events.Display.MenuChanged += OnMenuChanged;
+        }
+
+        private void OnSaveLoaded(object sender, SaveLoadedEventArgs e) {
+            // Read persisted config.
+            ModConfig config = this.Helper.ReadConfig<ModConfig>();
+
+            // Create a config entry for this save game if necessary.
+            string saveGameName = $"{Game1.GetSaveGameName()}_{Game1.uniqueIDForThisGame}";
+            if (!config.SaveGame.ContainsKey(saveGameName)) {
+                config.SaveGame.Add(saveGameName, new ConfigEntry());
+                this.Helper.WriteConfig(config);
+            }
+
+            this.showCommunityUpgrade_ = config.SaveGame[saveGameName].ShowCommunityUpgrade;
         }
 
         private void OnDayStarted(object sender, DayStartedEventArgs e) {
             FarmHouse farmHouse = Utility.getHomeOfFarmer(Game1.player);
             CreateCellarEntrance(farmHouse);
+        }
+
+        private void OnMenuChanged(object sender, MenuChangedEventArgs e) {
+            // Nothing to do.
+            if (!showCommunityUpgrade_) {
+                return;
+            }
+
+            // Unfinished requirements.
+            bool ccIsComplete = Game1.MasterPlayer.mailReceived.Contains("ccIsComplete") ||
+                                Game1.MasterPlayer.hasCompletedCommunityCenter();
+            bool jojaMember = Game1.MasterPlayer.mailReceived.Contains("JojaMember");
+            // Community upgrade in progress or already completed.
+            bool communityUpgradeInProgress = (Game1.getLocationFromName("Town") as Town).daysUntilCommunityUpgrade.Value > 0;
+            bool pamHouseUpgrade = Game1.MasterPlayer.mailReceived.Contains("pamHouseUpgrade");
+
+            if ((!ccIsComplete && !jojaMember) || communityUpgradeInProgress || pamHouseUpgrade) {
+                return;
+            }
+
+            // Intercept carpenter's menu.
+            if (e.NewMenu is DialogueBox dialogue) {
+                string text = this.Helper.Reflection.GetField<List<string>>(dialogue, "dialogues").GetValue().FirstOrDefault();
+                string menuText = Game1.content.LoadString("Strings\\Locations:ScienceHouse_CarpenterMenu");
+                if (text == menuText) {
+                    this.Monitor.Log("Intercepting carpenter's menu", LogLevel.Debug);
+                    List<Response> responses = this.Helper.Reflection.GetField<List<Response>>(dialogue, "responses").GetValue();
+                    Response upgrade          = responses.FirstOrDefault(r => r.responseKey == "Upgrade");
+                    Response communityUpgrade = responses.FirstOrDefault(r => r.responseKey == "CommunityUpgrade");
+                    if (upgrade == null || communityUpgrade != null) {
+                        return;
+                    }
+
+                    // Replace "Upgrade" by "CommunityUpgrade".
+                    upgrade.responseKey = "CommunityUpgrade";
+                    upgrade.responseText = Game1.content.LoadString("Strings\\Locations:ScienceHouse_CarpenterMenu_CommunityUpgrade");
+                }
+            }
         }
 
         private void CreateCellarEntrance(FarmHouse farmHouse) {
