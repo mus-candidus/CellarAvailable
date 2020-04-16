@@ -9,43 +9,69 @@ using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Locations;
 using StardewValley.Menus;
+using StardewValley.Objects;
 
 using CellarAvailable.Framework;
 
 
 namespace CellarAvailable {
     public class ModEntry : Mod {
-        private bool showCommunityUpgrade_;
+        private ModConfig config_;
+        private string saveGameName_;
 
         public override void Entry(IModHelper helper) {
-            this.Helper.Events.GameLoop.DayStarted += OnDayStarted;
             this.Helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+            this.Helper.Events.GameLoop.Saving     += OnSaving;
+            this.Helper.Events.GameLoop.DayStarted += OnDayStarted;
             // Hook into MenuChanged event to intercept dialogues.
             this.Helper.Events.Display.MenuChanged += OnMenuChanged;
         }
 
         private void OnSaveLoaded(object sender, SaveLoadedEventArgs e) {
             // Read persisted config.
-            ModConfig config = this.Helper.ReadConfig<ModConfig>();
+            config_ = this.Helper.ReadConfig<ModConfig>();
 
             // Create a config entry for this save game if necessary.
-            string saveGameName = $"{Game1.GetSaveGameName()}_{Game1.uniqueIDForThisGame}";
-            if (!config.SaveGame.ContainsKey(saveGameName)) {
-                config.SaveGame.Add(saveGameName, new ConfigEntry());
-                this.Helper.WriteConfig(config);
+            saveGameName_ = $"{Game1.GetSaveGameName()}_{Game1.uniqueIDForThisGame}";
+            if (!config_.SaveGame.ContainsKey(saveGameName_)) {
+                config_.SaveGame.Add(saveGameName_, new ConfigEntry());
+                this.Helper.WriteConfig(config_);
             }
 
-            this.showCommunityUpgrade_ = config.SaveGame[saveGameName].ShowCommunityUpgrade;
+            if (config_.SaveGame[saveGameName_].RemoveCasks) {
+                // Remove casks from the cellar.
+                FarmHouse farmHouse = Utility.getHomeOfFarmer(Game1.player);
+                GameLocation cellar = Game1.getLocationFromName(farmHouse.GetCellarName());
+
+                // ATTENTION: We must not modify a collection while enumerating it, thus
+                // we create a list of objects to remove and apply the operation after.
+                // ToList() is important here!
+                cellar.Objects
+                      .Pairs
+                      .Where(item => item.Value is Cask)
+                      .Select(item => item.Key)
+                      .ToList()
+                      .All(cellar.Objects.Remove);
+            }
+        }
+
+        private void OnSaving(object sender, SavingEventArgs e) {
+            if (config_.SaveGame[saveGameName_].RemoveCasks) {
+                // Unset the option to make sure casks are removed only once.
+                config_.SaveGame[saveGameName_].RemoveCasks = false;
+                this.Helper.WriteConfig(config_);
+            }
         }
 
         private void OnDayStarted(object sender, DayStartedEventArgs e) {
             FarmHouse farmHouse = Utility.getHomeOfFarmer(Game1.player);
+
             CreateCellarEntrance(farmHouse);
         }
 
         private void OnMenuChanged(object sender, MenuChangedEventArgs e) {
             // Nothing to do.
-            if (!showCommunityUpgrade_) {
+            if (config_ == null || !config_.SaveGame[saveGameName_].ShowCommunityUpgrade) {
                 return;
             }
 
