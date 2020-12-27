@@ -135,6 +135,9 @@ namespace CellarAvailable {
 
                 // Remove tiles for cellar entrance.
                 farmHouse.removeTile(7, 10, "Front");
+                farmHouse.removeTile(6, 11, "Front");
+                farmHouse.removeTile(7, 11, "Front");
+                farmHouse.removeTile(8, 11, "Front");
                 farmHouse.removeTile(7, 11, "Back");
                 farmHouse.removeTile(7, 11, "Buildings");
 
@@ -178,6 +181,10 @@ namespace CellarAvailable {
                 // Remove tiles for cellar entrance.
                 farmHouse.removeTile(4, 10, "Front");
                 farmHouse.removeTile(5, 10, "Front");
+                farmHouse.removeTile(3, 11, "Front");
+                farmHouse.removeTile(4, 11, "Front");
+                farmHouse.removeTile(5, 11, "Front");
+                farmHouse.removeTile(6, 11, "Front");
                 farmHouse.removeTile(4, 11, "Back");
                 farmHouse.removeTile(5, 11, "Back");
                 farmHouse.removeTile(4, 11, "Buildings");
