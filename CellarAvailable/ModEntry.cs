@@ -51,7 +51,7 @@ namespace CellarAvailable {
                       .Where(item => item.Value is Cask)
                       .Select(item => item.Key)
                       .ToList()
-                      .All(cellar.Objects.Remove);
+                      .ForEach(key => cellar.Objects.Remove(key));
             }
         }
 
@@ -100,13 +100,12 @@ namespace CellarAvailable {
 
             // Intercept carpenter's menu.
             if (e.NewMenu is DialogueBox dialogue) {
-                string text = this.Helper.Reflection.GetField<List<string>>(dialogue, "dialogues").GetValue().FirstOrDefault();
+                string text = dialogue.dialogues.FirstOrDefault();
                 string menuText = Game1.content.LoadString("Strings\\Locations:ScienceHouse_CarpenterMenu");
                 if (text == menuText) {
                     this.Monitor.Log("Intercepting carpenter's menu", LogLevel.Debug);
-                    List<Response> responses = this.Helper.Reflection.GetField<List<Response>>(dialogue, "responses").GetValue();
-                    Response upgrade          = responses.FirstOrDefault(r => r.responseKey == "Upgrade");
-                    Response communityUpgrade = responses.FirstOrDefault(r => r.responseKey == "CommunityUpgrade");
+                    Response upgrade          = dialogue.responses.FirstOrDefault(r => r.responseKey == "Upgrade");
+                    Response communityUpgrade = dialogue.responses.FirstOrDefault(r => r.responseKey == "CommunityUpgrade");
                     if (upgrade == null || communityUpgrade != null) {
                         return;
                     }
