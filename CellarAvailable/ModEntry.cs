@@ -92,8 +92,9 @@ namespace CellarAvailable {
             // Community upgrade in progress or already completed.
             bool communityUpgradeInProgress = (Game1.getLocationFromName("Town") as Town).daysUntilCommunityUpgrade.Value > 0;
             bool pamHouseUpgrade = Game1.MasterPlayer.mailReceived.Contains("pamHouseUpgrade");
+            bool communityUpgradeShortcuts = Game1.MasterPlayer.mailReceived.Contains("communityUpgradeShortcuts");
 
-            if ((!ccIsComplete && !jojaMember) || communityUpgradeInProgress || pamHouseUpgrade) {
+            if ((!ccIsComplete && !jojaMember) || communityUpgradeInProgress || (pamHouseUpgrade && communityUpgradeShortcuts)) {
                 return;
             }
 
